@@ -13,7 +13,8 @@ controls.state = 'game'
 controls.parse({
   game = {
     shoot = {'up', 'w'},
-    pause = {'escape'}
+    pause = {'escape'},
+    keyMashingButton = {' '}
   }
 })
 
@@ -37,7 +38,7 @@ controls.mouse.leftButton:onPress(function()
 end)
 
 controls.mouse.middleButton:onRelease(function()
-  print('MOUSE MIDDLE PRESS')
+  print('MOUSE MIDDLE RELEASE')
 end)
 
 controls.mouse.rightButton:onPress(function()
@@ -47,5 +48,10 @@ end)
 controls.mouse.physics:onMove(function(x, y, deltaX, deltaY)
   print(x, y, deltaX, deltaY)
 end)
+
+-- You can pass a boolean as a second argument to binding:onPress to determine whether or not to trigger on key repeats. Set to true to trigger on repeats. Defaults to false.
+controls.binding('keyMashingButton'):onPress(function()
+  aRepeatableAction()
+end, true)
 
 ```
