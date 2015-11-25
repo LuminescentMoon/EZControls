@@ -158,14 +158,6 @@ end
 local mouse = {}
 
 mouse.physics = {
-  secondLastPosition = {
-    x = 0,
-    y = 0
-  },
-  lastPosition = {
-    x = 0,
-    y = 0
-  },
   onMoveCallbacks = {}
 }
 
