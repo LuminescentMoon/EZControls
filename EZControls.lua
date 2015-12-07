@@ -16,6 +16,10 @@
 -- Dependencies
 --------------------------------------------------------------------------------------------------
 
+local rootDir = (...):match("(.-)[^%/]+$")
+
+local dkjson --= require(rootDir .. 'lib.dkjson.dkjson') We're lazy loading but leaving a comment just to show our intent. We lazy load to make dkjson an option dependency.
+
 local type = type
 local setmetatable = setmetatable
 local pairs = pairs
@@ -50,7 +54,7 @@ end
 --------------------------------------------------------------------------------------------------
 
 local controls = {
-  bindings = {},
+  states = {},
   keyObjects = {},
   state = nil
 }
@@ -60,7 +64,6 @@ local controls = {
 --------------------------------------------------------------------------------------------------
 
 local binding = {--[[
-  stateRequired = nil,
   keys = {},
   onPressCallbacks = {},
   onReleaseCallbacks = {}
@@ -86,33 +89,47 @@ function binding:bind(key)
   end
 end
 
+function binding:unbind(key)
+  if type(key) == 'table' then
+    for i = 1, #self.keys do
+      if self.keys[i] == key then
+        table.remove(self.keys, key)
+      end
+    end
+  else
+    table.remove(self.keys, key)
+  end
+end
+
 --------------------------------------------------------------------------------------------------
 -- Private Methods
 --------------------------------------------------------------------------------------------------
 
-local function createBinding(bindingName)
+local function createBinding(stateName, bindingName)
    local newBinding = setmetatable({
-    stateRequired = nil,
     keys = {},
     onPressCallbacks = {},
     onReleaseCallbacks = {}
   }, binding)
 
-  controls.bindings[bindingName] = newBinding
+  if not controls[stateName] then
+    controls.states[stateName] = {}
+  end
+  controls.states[stateName].bindings[bindingName] = newBinding
 
   return newBinding
 end
 
-local function bindingExists(bindingName)
-  return (type(controls.bindings[bindingName]) == 'table')
+local function bindingExists(stateName, bindingName)
+  return (type(controls.states[stateName].bindings[bindingName]) == 'table')
 end
 
-local function returnBindingOrNew(bindingName)
+local function returnBindingOrNew(stateName, bindingName)
   local workingBinding, isNew = nil, false
-    if bindingExists(bindingName) then
-      workingBinding = controls.bindings[bindingName]
+    if controls[stateName] and bindingExists(bindingName) then
+      workingBinding = controls.states[stateName].bindings[bindingName]
     else
-      workingBinding = createBinding(bindingName)
+      workingBinding = createBinding(stateName, bindingName)
       isNew = true
     end
   return workingBinding, isNew
@@ -122,34 +139,39 @@ end
 -- Public Methods
 --------------------------------------------------------------------------------------------------
 
-function controls.bind(keys, bindingName)
-  local workingBinding = returnBindingOrNew(bindingName)
+function controls.bind(keys, stateName, bindingName)
+  local workingBinding = returnBindingOrNew(stateName, bindingName)
   workingBinding:bind(keys)
   return workingBinding
 end
 
-function controls.binding(bindingName)
-  return (returnBindingOrNew(bindingName))
+function controls.state(stateName)
+  local function getBinding(bindingName)
+    return (returnBindingOrNew(stateName, bindingName))
+  end
+  return { binding = getBinding }
 end
 
 function controls.parse(table)
-  for state, bindings in pairs(table) do
-    for bindingName, keys in pairs(bindings) do
-      local workingBinding, isNew = returnBindingOrNew(bindingName)
+  controls.states = table
+end
 
-      if not isNew then
-        if not workingBinding.stateRequired == nil then
-          if not workingBinding.stateRequired == state then
-            error('binding name "' .. bindingName .. '" in state "' .. state .. '" is not unique')
-          end
-        else
-          workingBinding.stateRequired = state
-        end
-      end
-
-      workingBinding:bind(keys)
-    end
+function controls.load(loadPath)
+  if not dkjson then
+    dkjson = require(rootDir .. 'lib.dkjson.dkjson')
   end
+
+  local file = io.open(loadPath)
+  controls.states = dkjson.decode(file:read('*all'))
+end
+
+function controls.save(savePath)
+  if not dkjson then
+    dkjson = require(rootDir .. 'lib.dkjson.dkjson')
+  end
+
+  local file = io.open(savePath, 'w+')
+  file:write(dkjson.encode(controls.states, { exceptions = function() return true end}))
 end
 
 --------------------------------------------------------------------------------------------------
@@ -183,7 +205,7 @@ love.keyboard.setKeyRepeat(true)
 
 function love.keypressed(key, isRepeat, x, y)
   for _, bindingProps in pairs(controls.bindings) do
-    if tableContains(bindingProps.keys, key) and (bindingProps.stateRequired == controls.state or bindingProps.stateRequired == nil) then
+    if tableContains(bindingProps.keys, key) then
       for _, callback in pairs(bindingProps.onPressCallbacks) do
         if not (callback.listenToRepeat or isRepeat) then
           callback.func(x, y)
@@ -195,7 +217,7 @@ end
 
 function love.keyreleased(key, x, y)
   for _, bindingProps in pairs(controls.bindings) do
-    if tableContains(bindingProps.keys, key) and (bindingProps.stateRequired == controls.state or bindingProps.stateRequired == nil) then
+    if tableContains(bindingProps.keys, key) then
       for i = 1, #bindingProps.onReleaseCallbacks do
         bindingProps.onReleaseCallbacks[i](x, y)
       end
