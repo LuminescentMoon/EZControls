@@ -9,6 +9,9 @@ So if you cloned the project into ```/home/Desktop/ub3rl33tg4m3/vendor```, the p
 local controls = require('vendor.EZControls')
 ```
 
+## TODO
+- Add a way to check if binding is down.
+
 ## Example
 ```lua
 
