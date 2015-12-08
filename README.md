@@ -136,3 +136,55 @@ end
 -- Now pressing "a" will print "ayy\nlmao" since we have used the standalone event functions.
 --
 ```
+### Saving keybinds
+```lua
+-- Load library
+local controls = require('EZControls')
+
+-- Make a few keybinds
+controls.state('game').binding('player_left'):bind({'a', 'left'})
+controls.state('game').binding('player_right'):bind({'d', 'right'})
+controls.state('all').binding('quit'):bind('escape')
+
+-- The internal keybinds representation would be this:
+
+{
+  game = {
+    player_left = {
+      keys = {'a', 'left'},
+      onPressCallbacks = {},
+      onReleaseCallbacks = {}
+    },
+    player_right = {
+      keys = {'d', 'right'},
+      onPressCallbacks = {},
+      onReleaseCallbacks = {}
+    },
+  },
+  all = {
+    quit = {
+      keys = {'escape'},
+      onPressCallbacks = {},
+      onReleaseCallbacks = {}
+    }
+  }
+}
+
+-- Now this is not exactly simple. So we use EZControls' built-in serialize function to simplify it for saving.
+local keybinds = controls.serialize()
+
+-- The keybinds table representation would be this:
+
+{
+  game = {
+    player_left = {'a', 'left'},
+    player_right = {'d', 'right'},
+  },
+  all = {
+    quit = {'escape'},
+  }
+}
+
+-- And to load the keybinds table:
+controls.parse(keybinds)
+```
