@@ -7,7 +7,7 @@ A stateful LÖVE controls library providing a callback-style API for key events 
 -- Load the library.
 local controls = require('EZControls-compiled')
 
--- Set the controls library state
+-- Set the controls library state.
 controls.currentState = 'game'
 
 -- Setup keybinds using a table.
@@ -21,12 +21,14 @@ controls.parse({
   }
 })
 
--- Get the binding in the state "game" by the name "shoot" and register a callback for the onPress event.
+-- Get the binding in the state "game" by the name "shoot" and register
+-- a callback for the onPress event.
 controls.state('game').binding('shoot'):onPress(function()
   startShooting()
 end)
 
--- Get the binding in the state "game" by the name "shoot" and register a callback for the onRelease event.
+-- Get the binding in the state "game" by the name "shoot" and register
+-- a callback for the onRelease event.
 controls.state('game').binding('shoot'):onRelease(function()
   stopShooting()
 end)
@@ -52,12 +54,67 @@ controls.mouse:onMove(function(x, y, deltaX, deltaY)
   print(x, y, deltaX, deltaY)
 end)
 
--- You can pass a boolean as a second argument to binding:onPress to determine whether or not to trigger on key repeats. Set to true to trigger on repeats. Defaults to false.
+-- You can pass a boolean as a second argument to binding:onPress to determine whether
+-- or not to trigger on key repeats. Set to true to trigger on repeats. Defaults to false.
 controls.state('game').binding('keyMashingButton'):onPress(function()
   aRepeatableAction()
 end, true)
 
--- Programmatically bind and unbind keys. The functions accept both a list of keys to bind/unbind as an array or just one key as a string.
+-- Programmatically bind and unbind keys. The functions accept both a list of keys
+-- to bind/unbind as an array or just one key as a string.
 controls.state('game').binding('pause'):bind('q')
 controls.state('game').binding('pause'):unbind({'q', 'escape'})
+```
+EZControls will check if love.keypressed, love.keyreleased, love.mousepressed, love.mousereleased, or love.mousemoved is already being used. If it isn't, it'll override them. If it is, it'll provide functions to fire control events to.
+```lua
+-- Override the love.keypressed function
+function love.keypressed(key, isRepeat)
+  if key == 'a' then
+    print('ayy')
+  end
+end
+
+-- Load the library.
+local controls = require('EZControls-compiled')
+
+-- Set the controls library state.
+controls.currentState = 'game'
+
+-- Bind a function to the binding "test" in the state "game". Note that if the binding
+-- or state does not exist in EZControl's keybinds, it'll make it automatically.
+controls.state('game').binding('test'):onPress(function()
+  print('lmao')
+end)
+
+-- Bind key "a" to binding "test" in state "game".
+controls.state('game').binding('test'):bind('a')
+
+--
+-- Pressing "a" will never print "lmao" since the controls library never overriden
+-- the love.keypressed function because it already detected a function there.
+--
+
+function love.keypressed(key, isRepeat)
+  controls.fire.keyPressed(key, isRepeat)
+end
+
+function love.keyreleased(key)
+  controls.fire.keyReleased(key)
+end
+
+function love.mousepressed(x, y, button)
+  controls.fire.mousePressed(x, y, button)
+end
+
+function love.mousereleased(x, y, button)
+  controls.fire.mouseReleased(x, y, button)
+end
+
+function love.mousemoved(x, y, deltaX, deltaY)
+  controls.fire.mouseMove(x, y, deltaX, deltaY)
+end
+
+--
+-- Now pressing "a" will print "ayy\nlmao" since we have used the standalone event functions.
+--
 ```
