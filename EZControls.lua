@@ -206,7 +206,7 @@ function controls.state(stateName)
   local function getBinding(bindingName)
     return (returnBindingOrNew(stateName, bindingName))
   end
-  return { binding = getBinding, bind = bind }
+  return { binding = getBinding }
 end
 
 function controls.serialize()
