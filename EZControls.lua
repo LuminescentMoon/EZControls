@@ -305,7 +305,7 @@ end
 -- Integrations
 --------------------------------------------------------------------------------------------------
 
-if not (love.keypressed and love.keyreleased and love.mousepressed and love.mousereleased and love.mousemoved) then
+if love and not (love.keypressed and love.keyreleased and love.mousepressed and love.mousereleased and love.mousemoved) then
   -- Love2D
   love.keyboard.setKeyRepeat(true)
 
