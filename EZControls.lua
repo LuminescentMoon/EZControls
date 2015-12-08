@@ -17,39 +17,44 @@
 --------------------------------------------------------------------------------------------------
 
 local controls = {
-  _VERSION = '0.1.0',
+  _VERSION = '0.2.0',
   _DESCRIPTION = 'Callback style controls library for Lua.',
   _URL = 'https://github.com/Luminess/EZControls',
 
   states = {},
   keyObjects = {},
-  state = nil
+  currentState = nil
 }
 
 --------------------------------------------------------------------------------------------------
 -- Dependencies
 --------------------------------------------------------------------------------------------------
 
-local rootDir = (...):match("(.-)[^%/]+$")
+local rootDir = (...):gsub('%.[^%.]+$', '.')
 
 local dkjson --= require(rootDir .. 'lib.dkjson.dkjson') We're lazy loading but leaving a comment just to show our intent. We lazy load to make dkjson an option dependency.
-local inspect = require('inspect')
+local ser = require(rootDir .. 'lib.Ser.ser')
 
 local type = type
 local setmetatable = setmetatable
 local pairs = pairs
 local table = {
-  insert = table.insert
+  insert = table.insert,
+  remove = table.remove
 }
-local error = error
 local love = love
 
 --------------------------------------------------------------------------------------------------
 -- Utility Functions
 --------------------------------------------------------------------------------------------------
 
-local tableContains = function(table, element)
-  for _, value in pairs(table) do
+local tableClone
+tableClone = function(orig)
+  return loadstring(ser(orig))()
+end
+
+local tableContains = function(t, element)
+  for _, value in pairs(t) do
     if value == element then
       return true
     end
@@ -65,14 +70,42 @@ local tableConcat = function(t1, t2)
 end
 
 local stripTableByKeyName
-stripTableByKeyName = function(table, keyName)
-  for k, v in pairs(table) do
-    if k == keyName then
-      table.remove(table, k)
-    elseif type(v) == 'table' then
-      stripTableByKeyName(v, keyName)
+stripTableByKeyName = function(t, keyName, shouldMutate)
+  local workingTable = t
+  if not shouldMutate then
+    workingTable = tableClone(workingTable)
+  end
+
+  if type(keyName) ~= 'table' then
+    keyName = {keyName}
+  end
+
+  for k, v in pairs(workingTable) do
+    for _, keyName in ipairs(keyName) do
+      if k == keyName then
+        workingTable[k] = nil
+      elseif type(v) == 'table' then
+        stripTableByKeyName(v, {keyName}, true)
+      end
     end
   end
+
+  return workingTable
+end
+
+local stripArrayByValue = function(t, value, shouldMutate)
+  local workingTable = t
+  if not shouldMutate then
+    workingTable = tableClone(workingTable)
+  end
+
+  for i, v in ipairs(workingTable) do
+    if v == value then
+      table.remove(workingTable, i)
+    end
+  end
+
+  return workingTable
 end
 
 --------------------------------------------------------------------------------------------------
@@ -107,13 +140,11 @@ end
 
 function binding:unbind(key)
   if type(key) == 'table' then
-    for i = 1, #self.keys do
-      if self.keys[i] == key then
-        table.remove(self.keys, key)
-      end
+    for _, workingKey in ipairs(key) do
+      stripArrayByValue(self.keys, workingKey, true)
     end
   else
-    table.remove(self.keys, key)
+    stripArrayByValue(self.keys, key, true)
   end
 end
 
@@ -142,7 +173,7 @@ end
 
 local function returnBindingOrNew(stateName, bindingName)
   local workingBinding, isNew = nil, false
-  if controls[stateName] and bindingExists(bindingName) then
+  if controls.states[stateName] and bindingExists(stateName, bindingName) then
     workingBinding = controls.states[stateName][bindingName]
   else
     workingBinding = createBinding(stateName, bindingName)
@@ -156,7 +187,7 @@ end
 --------------------------------------------------------------------------------------------------
 
 function controls.bind(keys, stateName, bindingName)
-  local workingBinding = returnBindingOrNew(stateName, bindingName)
+  local workingBinding = (returnBindingOrNew(stateName, bindingName))
   workingBinding:bind(keys)
   return workingBinding
 end
@@ -165,14 +196,30 @@ function controls.state(stateName)
   local function getBinding(bindingName)
     return (returnBindingOrNew(stateName, bindingName))
   end
-  local function bind(keys, bindingName)
-    return controls.bind(keys, stateName, bindingName)
-  end
   return { binding = getBinding, bind = bind }
 end
 
-function controls.parse(table)
- -- TODO
+function controls.serialize()
+  local states = stripTableByKeyName(controls.states, {'onPressCallbacks', 'onReleaseCallbacks'})
+
+  for _, bindings in pairs(states) do
+    for _, bindingProps in pairs(bindings) do
+      for i, key in ipairs(bindingProps.keys) do
+        bindingProps[i] = key
+      end
+      stripTableByKeyName(bindingProps, 'keys', true)
+    end
+  end
+
+  return states
+end
+
+function controls.parse(t)
+  for stateName, bindings in pairs(t) do
+    for bindingName, keys in pairs(bindings) do
+      controls.bind(keys, stateName, bindingName)
+    end
+  end
 end
 
 function controls.load(loadPath)
@@ -180,7 +227,7 @@ function controls.load(loadPath)
     dkjson = require(rootDir .. 'lib.dkjson.dkjson')
   end
 
-  controls.states = dkjson.decode(io.open(loadPath):read('*all'))
+  controls.parse(dkjson.decode(io.open(loadPath):read('*all')))
 end
 
 function controls.save(savePath)
@@ -188,27 +235,19 @@ function controls.save(savePath)
     dkjson = require(rootDir .. 'lib.dkjson.dkjson')
   end
 
-  local states = stripTableByKeyName(controls.states, {'onPressCallbacks', 'onReleaseCallbacks'})
+  local keybinds = controls.serialize()
 
-  for state, v in pairs(states) do
-    for binding, v in pairs(v) do
-      -- TODO
-    end
-  end
-
-  io.open(savePath, 'w+'):write(dkjson.encode(states, { exceptions = function() return true end}))
+  io.open(savePath, 'w+'):write(dkjson.encode(keybinds, { exceptions = function() return true end}))
 end
 
 --------------------------------------------------------------------------------------------------
 -- Mouse Object
 --------------------------------------------------------------------------------------------------
-local mouse = {}
-
-mouse.physics = {
+local mouse = {
   onMoveCallbacks = {}
 }
 
-function mouse.physics:onMove(function_callback)
+function mouse:onMove(function_callback)
   table.insert(self.onMoveCallbacks, function_callback)
 end
 
@@ -223,17 +262,15 @@ mouse.mouseWheel.down = controls.bind('mouse_wd', 'all', 'mouse_wd')
 controls.mouse = mouse
 
 --------------------------------------------------------------------------------------------------
--- Love2D Callbacks Handlers
+-- Callbacks Handlers
 --------------------------------------------------------------------------------------------------
 
-love.keyboard.setKeyRepeat(true)
-
-function love.keypressed(key, isRepeat, x, y)
+local function onKeyPress(key, isRepeat, x, y)
   for state, bindings in pairs(controls.states) do
-    if state == controls.state or state == 'all' then
+    if state == controls.currentState or state == 'all' then
       for _, bindingProps in pairs(bindings) do
         if tableContains(bindingProps.keys, key) then
-          for _, callback in pairs(bindingProps.onPressCallbacks) do
+          for _, callback in ipairs(bindingProps.onPressCallbacks) do
             if not (callback.listenToRepeat or isRepeat) then
               callback.func(x, y)
             end
@@ -244,13 +281,13 @@ function love.keypressed(key, isRepeat, x, y)
   end
 end
 
-function love.keyreleased(key, x, y)
+local function onKeyRelease(key, x, y)
   for state, bindings in pairs(controls.states) do
-    if state == controls.state or state == 'all' then
+    if state == controls.currentState or state == 'all' then
       for _, bindingProps in pairs(bindings) do
         if tableContains(bindingProps.keys, key) then
-          for i = 1, #bindingProps.onReleaseCallbacks do
-            bindingProps.onReleaseCallbacks[i](x, y)
+          for _, callback in ipairs(bindingProps.onReleaseCallbacks) do
+            callback(x, y)
           end
         end
       end
@@ -258,17 +295,61 @@ function love.keyreleased(key, x, y)
   end
 end
 
-function love.mousepressed(x, y, button)
-  love.keypressed('mouse_' .. button, false, x, y)
-end
-
-function love.mousereleased(x, y, button)
-  love.keyreleased('mouse_' .. button, x, y)
-end
-
-function love.mousemoved(x, y, deltaX, deltaY) -- TODO: Maybe implement state awareness.
-  for _, callback in pairs(mouse.physics.onMoveCallbacks) do
+local function onMouseMove(x, y, deltaX, deltaY) -- TODO: Maybe implement state awareness.
+  for _, callback in ipairs(mouse.onMoveCallbacks) do
     callback(x, y, deltaX, deltaY)
+  end
+end
+
+--------------------------------------------------------------------------------------------------
+-- Integrations
+--------------------------------------------------------------------------------------------------
+
+if not (love.keypressed and love.keyreleased and love.mousepressed and love.mousereleased and love.mousemoved) then
+  -- Love2D
+  love.keyboard.setKeyRepeat(true)
+
+  function love.keypressed(key, isRepeat)
+    onKeyPress(key, isRepeat)
+  end
+
+  function love.keyreleased(key)
+    onKeyRelease(key)
+  end
+
+  function love.mousepressed(x, y, button)
+    onKeyPress('mouse_' .. button, false, x, y)
+  end
+
+  function love.mousereleased(x, y, button)
+    onKeyRelease('mouse_' .. button, x, y)
+  end
+
+  function love.mousemoved(x, y, deltaX, deltaY)
+    onMouseMove(x, y, deltaX, deltaY)
+  end
+else
+  -- Standalone
+  controls.fire = {}
+
+  function controls.fire.keyPressed(key, isRepeat)
+    onKeyPress(key, isRepeat)
+  end
+
+  function controls.fire.keyReleased(key)
+    onKeyRelease(key)
+  end
+
+  function controls.fire.mousePressed(x, y, button)
+    onKeyPress('mouse_' .. button, false, x, y)
+  end
+
+  function controls.fire.mouseReleased(x, y, button)
+    onKeyRelease('mouse_' .. button, x, y)
+  end
+
+  function controls.fire.mouseMove(x, y, deltaX, deltaY)
+    onMouseMove(x, y, deltaX, deltaY)
   end
 end
 
