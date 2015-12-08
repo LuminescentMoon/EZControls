@@ -13,12 +13,27 @@
 -- limitations under the License.
 
 --------------------------------------------------------------------------------------------------
+-- Main Object
+--------------------------------------------------------------------------------------------------
+
+local controls = {
+  _VERSION = '0.1.0',
+  _DESCRIPTION = 'Callback style controls library for Lua.',
+  _URL = 'https://github.com/Luminess/EZControls',
+
+  states = {},
+  keyObjects = {},
+  state = nil
+}
+
+--------------------------------------------------------------------------------------------------
 -- Dependencies
 --------------------------------------------------------------------------------------------------
 
 local rootDir = (...):match("(.-)[^%/]+$")
 
 local dkjson --= require(rootDir .. 'lib.dkjson.dkjson') We're lazy loading but leaving a comment just to show our intent. We lazy load to make dkjson an option dependency.
+local inspect = require('inspect')
 
 local type = type
 local setmetatable = setmetatable
@@ -49,15 +64,16 @@ local tableConcat = function(t1, t2)
   return t1
 end
 
---------------------------------------------------------------------------------------------------
--- Main Object
---------------------------------------------------------------------------------------------------
-
-local controls = {
-  states = {},
-  keyObjects = {},
-  state = nil
-}
+local stripTableByKeyName
+stripTableByKeyName = function(table, keyName)
+  for k, v in pairs(table) do
+    if k == keyName then
+      table.remove(table, k)
+    elseif type(v) == 'table' then
+      stripTableByKeyName(v, keyName)
+    end
+  end
+end
 
 --------------------------------------------------------------------------------------------------
 -- Binding Object
@@ -112,26 +128,26 @@ local function createBinding(stateName, bindingName)
     onReleaseCallbacks = {}
   }, binding)
 
-  if not controls[stateName] then
+  if not controls.states[stateName] then
     controls.states[stateName] = {}
   end
-  controls.states[stateName].bindings[bindingName] = newBinding
+  controls.states[stateName][bindingName] = newBinding
 
   return newBinding
 end
 
 local function bindingExists(stateName, bindingName)
-  return (type(controls.states[stateName].bindings[bindingName]) == 'table')
+  return (type(controls.states[stateName][bindingName]) == 'table')
 end
 
 local function returnBindingOrNew(stateName, bindingName)
   local workingBinding, isNew = nil, false
-    if controls[stateName] and bindingExists(bindingName) then
-      workingBinding = controls.states[stateName].bindings[bindingName]
-    else
-      workingBinding = createBinding(stateName, bindingName)
-      isNew = true
-    end
+  if controls[stateName] and bindingExists(bindingName) then
+    workingBinding = controls.states[stateName][bindingName]
+  else
+    workingBinding = createBinding(stateName, bindingName)
+    isNew = true
+  end
   return workingBinding, isNew
 end
 
@@ -149,11 +165,14 @@ function controls.state(stateName)
   local function getBinding(bindingName)
     return (returnBindingOrNew(stateName, bindingName))
   end
-  return { binding = getBinding }
+  local function bind(keys, bindingName)
+    return controls.bind(keys, stateName, bindingName)
+  end
+  return { binding = getBinding, bind = bind }
 end
 
 function controls.parse(table)
-  controls.states = table
+ -- TODO
 end
 
 function controls.load(loadPath)
@@ -161,8 +180,7 @@ function controls.load(loadPath)
     dkjson = require(rootDir .. 'lib.dkjson.dkjson')
   end
 
-  local file = io.open(loadPath)
-  controls.states = dkjson.decode(file:read('*all'))
+  controls.states = dkjson.decode(io.open(loadPath):read('*all'))
 end
 
 function controls.save(savePath)
@@ -170,8 +188,15 @@ function controls.save(savePath)
     dkjson = require(rootDir .. 'lib.dkjson.dkjson')
   end
 
-  local file = io.open(savePath, 'w+')
-  file:write(dkjson.encode(controls.states, { exceptions = function() return true end}))
+  local states = stripTableByKeyName(controls.states, {'onPressCallbacks', 'onReleaseCallbacks'})
+
+  for state, v in pairs(states) do
+    for binding, v in pairs(v) do
+      -- TODO
+    end
+  end
+
+  io.open(savePath, 'w+'):write(dkjson.encode(states, { exceptions = function() return true end}))
 end
 
 --------------------------------------------------------------------------------------------------
@@ -188,12 +213,12 @@ function mouse.physics:onMove(function_callback)
 end
 
 -- Simple syntactical sugar.
-mouse.leftButton = controls.bind('mouse_l', 'mouse_l')
-mouse.middleButton = controls.bind('mouse_m', 'mouse_m')
-mouse.rightButton = controls.bind('mouse_r', 'mouse_r')
+mouse.leftButton = controls.bind('mouse_l', 'all', 'mouse_l')
+mouse.middleButton = controls.bind('mouse_m', 'all', 'mouse_m')
+mouse.rightButton = controls.bind('mouse_r', 'all', 'mouse_r')
 mouse.mouseWheel = {}
-mouse.mouseWheel.up = controls.bind('mouse_wu', 'mouse_wu')
-mouse.mouseWheel.down = controls.bind('mouse_wd', 'mouse_wd')
+mouse.mouseWheel.up = controls.bind('mouse_wu', 'all', 'mouse_wu')
+mouse.mouseWheel.down = controls.bind('mouse_wd', 'all', 'mouse_wd')
 
 controls.mouse = mouse
 
@@ -204,11 +229,15 @@ controls.mouse = mouse
 love.keyboard.setKeyRepeat(true)
 
 function love.keypressed(key, isRepeat, x, y)
-  for _, bindingProps in pairs(controls.bindings) do
-    if tableContains(bindingProps.keys, key) then
-      for _, callback in pairs(bindingProps.onPressCallbacks) do
-        if not (callback.listenToRepeat or isRepeat) then
-          callback.func(x, y)
+  for state, bindings in pairs(controls.states) do
+    if state == controls.state or state == 'all' then
+      for _, bindingProps in pairs(bindings) do
+        if tableContains(bindingProps.keys, key) then
+          for _, callback in pairs(bindingProps.onPressCallbacks) do
+            if not (callback.listenToRepeat or isRepeat) then
+              callback.func(x, y)
+            end
+          end
         end
       end
     end
@@ -216,10 +245,14 @@ function love.keypressed(key, isRepeat, x, y)
 end
 
 function love.keyreleased(key, x, y)
-  for _, bindingProps in pairs(controls.bindings) do
-    if tableContains(bindingProps.keys, key) then
-      for i = 1, #bindingProps.onReleaseCallbacks do
-        bindingProps.onReleaseCallbacks[i](x, y)
+  for state, bindings in pairs(controls.states) do
+    if state == controls.state or state == 'all' then
+      for _, bindingProps in pairs(bindings) do
+        if tableContains(bindingProps.keys, key) then
+          for i = 1, #bindingProps.onReleaseCallbacks do
+            bindingProps.onReleaseCallbacks[i](x, y)
+          end
+        end
       end
     end
   end
