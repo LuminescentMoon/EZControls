@@ -130,6 +130,16 @@ function binding:onRelease(function_callback)
   table.insert(self.onReleaseCallbacks, function_callback)
 end
 
+function binding:isDown()
+  for _, key in ipairs(self.keys) do
+    if love.keyboard.isDown(key) then
+      return true
+    end
+  end
+
+  return false
+end
+
 function binding:bind(key)
   if type(key) == 'table' then
     tableConcat(self.keys, key)

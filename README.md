@@ -10,7 +10,7 @@ local controls = require('vendor.EZControls')
 ```
 
 ## TODO
-- Add a way to check if binding is down.
+- Literally nothing.
 
 ## Example
 ```lua
@@ -47,6 +47,13 @@ end)
 controls.state('all').binding('pause'):onPress(function()
   pauseGame()
 end)
+
+-- You can also do the traditional way of checking if a key is down, like so:
+function love.update(deltaTime)
+  if controls.state('game').binding('shoot'):isDown() then
+    shootTick(deltaTime)
+  end
+end
 
 -- The library includes syntactical sugar for the mouse buttons.
 controls.mouse.leftButton:onPress(function()
