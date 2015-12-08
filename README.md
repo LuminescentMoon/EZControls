@@ -170,7 +170,8 @@ controls.state('all').binding('quit'):bind('escape')
   }
 }
 
--- Now this is not exactly simple. So we use EZControls' built-in serialize function to simplify it for saving.
+-- Now this is not exactly simple. So we use EZControls' built-in serialize function
+-- to simplify it for saving.
 local keybinds = controls.serialize()
 
 -- The keybinds table representation would be this:
