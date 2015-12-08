@@ -10,7 +10,7 @@ local controls = require('vendor.EZControls')
 ```
 
 ## TODO
-- Literally nothing.
+- Remove dependency for love2d in the isDown binding object function.
 
 ## Example
 ```lua
