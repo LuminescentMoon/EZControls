@@ -1,11 +1,19 @@
 # EZControls
 A stateful LÖVE controls library providing a callback-style API for key events by name along with configuration support.
 
+## Installation
+Simply git clone this project into your preferred library folder and require the project folder itself.
+
+So if you cloned the project into ```/home/Desktop/ub3rl33tg4m3/vendor```, the path would be ```/home/Desktop/ub3rl33tg4m3/vendor/EZControls```. If your main.lua is in ```/home/Desktop/ub3rl33tg4m3/```, you would then require it like so:
+```lua
+local controls = require('vendor.EZControls')
+```
+
 ## Example
 ```lua
 
 -- Load the library.
-local controls = require('EZControls-compiled')
+local controls = require('EZControls')
 
 -- Set the controls library state.
 controls.currentState = 'game'
@@ -75,7 +83,7 @@ function love.keypressed(key, isRepeat)
 end
 
 -- Load the library.
-local controls = require('EZControls-compiled')
+local controls = require('EZControls')
 
 -- Set the controls library state.
 controls.currentState = 'game'
