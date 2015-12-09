@@ -22,7 +22,6 @@ local controls = {
   _URL = 'https://github.com/Luminess/EZControls',
 
   states = {},
-  keyObjects = {},
   currentState = nil
 }
 
