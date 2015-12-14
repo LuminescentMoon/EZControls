@@ -22,6 +22,7 @@ local controls = {
   _URL = 'https://github.com/Luminess/EZControls',
 
   states = {},
+  _keystrokeListeners = {},
   currentState = nil
 }
 
@@ -146,6 +147,13 @@ function binding:bind(key)
   else
     table.insert(self.keys, key)
   end
+end
+
+function binding:bindNext(function_callback)
+  table.insert(controls._keystrokeListeners, function(key)
+    self:bind(key)
+    function_callback(key)
+  end)
 end
 
 function binding:unbind(key)
@@ -276,6 +284,11 @@ controls.mouse = mouse
 --------------------------------------------------------------------------------------------------
 
 local function onKeyPress(key, isRepeat, x, y)
+  for i, listener in ipairs(controls._keystrokeListeners) do
+    listener(key)
+    table.remove(controls._keystrokeListeners, i)
+  end
+
   for state, bindings in pairs(controls.states) do
     if state == controls.currentState or state == 'all' then
       for _, bindingProps in pairs(bindings) do
