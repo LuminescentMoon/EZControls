@@ -78,7 +78,7 @@ controls.state('game').binding('keyMashingButton'):onPress(function()
   aRepeatableAction()
 end, true)
 
--- Programmatically bind and unbind keys. The functions accept both a list of keys
+-- Programmatically bind and unbind keys. The methods accept both a list of keys
 -- to bind/unbind as an array or just one key as a string.
 controls.state('game').binding('pause'):bind('q')
 controls.state('game').binding('pause'):unbind({'q', 'escape'})
@@ -105,9 +105,9 @@ controls.state('game').binding('jetpack_fire'):onRelease(function()
   disableJetpack()
 end)
 ```
-EZControls will check if love.keypressed, love.keyreleased, love.mousepressed, love.mousereleased, or love.mousemoved is already being used. If it isn't, it'll override them. If it is, it'll provide functions to fire control events to.
+EZControls will check if love.keypressed, love.keyreleased, love.mousepressed, love.mousereleased, or love.mousemoved is already being used. If it isn't, it'll override them. If it is, it'll provide methods to fire control events to.
 ```lua
--- Override the love.keypressed function
+-- Override the love.keypressed method
 function love.keypressed(key, isRepeat)
   if key == 'a' then
     print('ayy')
@@ -121,7 +121,7 @@ local controls = require('EZControls')
 controls.currentState = 'game'
 
 -- Bind a function to the binding "test" in the state "game". Note that if the binding
--- or state does not exist in EZControl's keybinds, it'll make it automatically.
+-- or state does not exist in EZControl's keybinds, it'll be created automatically.
 controls.state('game').binding('test'):onPress(function()
   print('lmao')
 end)
@@ -131,7 +131,7 @@ controls.state('game').binding('test'):bind('a')
 
 --
 -- Pressing "a" will never print "lmao" since the controls library never overriden
--- the love.keypressed function because it already detected a function there.
+-- the love.keypressed method because it detected that ```love.keypressed``` was already overidden.
 --
 
 function love.keypressed(key, isRepeat)
@@ -168,7 +168,7 @@ controls.state('game').binding('player_left'):bind({'a', 'left'})
 controls.state('game').binding('player_right'):bind({'d', 'right'})
 controls.state('all').binding('quit'):bind('escape')
 
--- The internal keybinds representation would be this:
+-- The internal keybinds representation (controls.states) would be this:
 
 {
   game = {
@@ -192,8 +192,8 @@ controls.state('all').binding('quit'):bind('escape')
   }
 }
 
--- Now this is not exactly simple. So we use EZControls' built-in serialize function
--- to simplify it for saving.
+-- We could just dump controls.states to a file but it would not make for easy editing.
+-- So we use EZControls' built-in serialize function to simplify it for saving.
 local keybinds = controls.serialize()
 
 -- The keybinds table representation would be this:
