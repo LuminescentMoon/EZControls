@@ -17,7 +17,7 @@
 --------------------------------------------------------------------------------------------------
 
 local controls = {
-  _VERSION = '0.3.1',
+  _VERSION = '0.4.0',
   _DESCRIPTION = 'Callback style controls library for Lua.',
   _URL = 'https://github.com/Luminess/EZControls',
 
