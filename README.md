@@ -83,6 +83,28 @@ end, true)
 controls.state('game').binding('pause'):bind('q')
 controls.state('game').binding('pause'):unbind({'q', 'escape'})
 ```
+You can also bind the next key pressed to a binding like so:
+```lua
+-- Load the library.
+local controls = require('EZControls')
+
+-- Set the controls library state.
+controls.currentState = 'game'
+
+ -- Binds the next key pressed to the binding "jetpack_fire".
+controls.state('game').binding('jetpack_fire'):bindNext(function(key)
+  print('binded ' .. key .. ' to binding "jetpack_fire"')
+end)
+
+-- Create callbacks for the bindings.
+controls.state('game').binding('jetpack_fire'):onPress(function()
+  enableJetpack()
+end)
+
+controls.state('game').binding('jetpack_fire'):onRelease(function()
+  disableJetpack()
+end)
+```
 EZControls will check if love.keypressed, love.keyreleased, love.mousepressed, love.mousereleased, or love.mousemoved is already being used. If it isn't, it'll override them. If it is, it'll provide functions to fire control events to.
 ```lua
 -- Override the love.keypressed function
