@@ -1,0 +1,4 @@
+.travis.* export-ignore
+.git* export-ignore
+
+*-compiled.lua binary

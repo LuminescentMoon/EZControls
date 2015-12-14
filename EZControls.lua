@@ -34,6 +34,7 @@ local rootDir = (...):gsub('%.[^%.]+$', '.')
 local dkjson --= require(rootDir .. 'lib.dkjson.dkjson') We're lazy loading but leaving a comment just to show our intent. We lazy load to make dkjson an option dependency.
 local ser = require(rootDir .. 'lib.Ser.ser')
 
+local loadstring = loadstring
 local type = type
 local setmetatable = setmetatable
 local pairs = pairs
