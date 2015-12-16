@@ -38,6 +38,7 @@ local ser = require(rootDir .. 'lib.Ser.ser')
 local loadstring = loadstring
 local type = type
 local setmetatable = setmetatable
+local ipairs = ipairs
 local pairs = pairs
 local table = {
   insert = table.insert,
