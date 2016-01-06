@@ -1,5 +1,5 @@
--- ezcontrols.lua - v0.1.0
--- © 2015 Howard Nguyen
+-- ezcontrols.lua
+-- © 2016 Howard Nguyen
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
 -- You may obtain a copy of the License at
@@ -17,7 +17,7 @@
 --------------------------------------------------------------------------------------------------
 
 local controls = {
-  _VERSION = '0.4.0',
+  _VERSION = '0.4.1',
   _DESCRIPTION = 'Callback style controls library for Lua.',
   _URL = 'https://github.com/Luminess/EZControls',
 
@@ -43,6 +43,9 @@ local pairs = pairs
 local table = {
   insert = table.insert,
   remove = table.remove
+}
+local io = {
+  open = io.open
 }
 local love = love
 
@@ -223,9 +226,7 @@ function controls.serialize()
 
   for _, bindings in pairs(states) do
     for _, bindingProps in pairs(bindings) do
-      for i, key in ipairs(bindingProps.keys) do
-        bindingProps[i] = key
-      end
+      bindingProps = bindingProps.keys
       stripTableByKeyName(bindingProps, 'keys', true)
     end
   end
@@ -271,11 +272,11 @@ function mouse:onMove(function_callback)
 end
 
 -- Simple syntactical sugar.
-mouse.leftButton = controls.bind('mouse_l', 'all', 'mouse_l')
-mouse.middleButton = controls.bind('mouse_m', 'all', 'mouse_m')
-mouse.rightButton = controls.bind('mouse_r', 'all', 'mouse_r')
+mouse.leftButton = controls.bind('mouse_1', 'all', 'mouse_l')
+mouse.middleButton = controls.bind('mouse_3', 'all', 'mouse_m')
+mouse.rightButton = controls.bind('mouse_2', 'all', 'mouse_r')
 mouse.mouseWheel = {}
-mouse.mouseWheel.up = controls.bind('mouse_wu', 'all', 'mouse_wu')
+mouse.mouseWheel.up = controls.bind('mouse_wu', 'all', 'mouse_wu') -- TODO: Doesn't work for 0.10.0 Love2D. Replace with love.wheelmoved()
 mouse.mouseWheel.down = controls.bind('mouse_wd', 'all', 'mouse_wd')
 
 controls.mouse = mouse
@@ -333,7 +334,7 @@ if love and not (love.keypressed and love.keyreleased and love.mousepressed and 
   -- Love2D
   love.keyboard.setKeyRepeat(true)
 
-  function love.keypressed(key, isRepeat)
+  function love.keypressed(key, _, isRepeat)
     onKeyPress(key, isRepeat)
   end
 
